@@ -1,49 +1,33 @@
 class Camera
-	constructor: (@pos, @theta, @alpha, @phi) ->
+	constructor: (@pos, @theta, @ctx, @walls, @width, @height, @pixWidth, @ScrHeight, @ScrWidth, @ScrDist) ->
+		@xres = @width//@pixWidth
+		@pxlWidth = @ScrWidth/@xres
+		# @e_theta = new Vector(Math.cos(@theta),Math.sin(@theta))
 	_adjust: () ->
 		if @theta > Math.PI
 			@theta -= 2*Math.PI
 		else if @theta < -Math.PI
 			@theta += 2*Math.PI
 			
-	drawWalls2: (ctx, walls, xres, pixWidth) ->
+	drawWalls: () ->
 		@_adjust()
-		step = @alpha * 2/xres
-		rayAng = @theta - @alpha
-		end = @theta + @alpha
-		i = 0
-		# implement a matrix rotation as alternative to using trig in iteration asp
-		while rayAng < end
-			p = @_getIntersection(rayAng, walls)
-			if p != null
-				n = closestWall.a.clone().sub(closestWall.b).hat().rot90()
-				brightness = Math.abs(p.dot(n) / (p.len2()*p.len())) #=|p.n/(|p|^3)|
-				ctx.fillStyle = closestWall.getColour(brightness)
-				_h = Math.atan(Wall.h/2/p.len())/@phi
-				ctx.fillRect(ctx.width-pixWidth*(i+1),ctx.height/2-_h,pixWidth,_h*2)
-			# iteration step
-			rayAng += step
-			i+=1
-	drawWalls: (ctx, walls, xres, pixWidth, height) ->
-		@_adjust()
-		step = @alpha * 2/xres
-		rayAng = @theta + @alpha
-		end = @theta - @alpha
-		i = 0
-		while rayAng > end
+		@pxlWidth = @scrWidth/@xres
+		e_r = new Vector(Math.cos(@theta), Math.sin(@theta))
+		e_theta = e_r.clone().rot90()
+		pxlLat = e_theta.clone().mult(@pxlWidth)
+		r = e_r.clone().mult(@scrDist).add(e_theta.clone().mult(@scrWidth/2))
+		for i in [1..xres]
 			[p, closestWall] = @_getIntersection(rayAng, walls)
 			if p != null
 				n = closestWall.a.clone().sub(closestWall.b).hat().rot90()
 				brightness = Math.abs(p.dot(n) / (p.len2()*p.len())) #=|p.n/(|p|^3)|
 				ctx.fillStyle =  closestWall.getColour(brightness)
-				_h = height*Math.atan(Wall.h/2/p.len())/@phi
-				ctx.fillRect(i,(height-_h)/2,1,_h)
+				_h = Wall.h*r.len()/p.len()*@height/@scrHeight
+				ctx.fillRect(i-1,(@height-_h)/2,@pixWidth,_h)
 				#ctx.fillRect(ctx.width-pixWidth*(i+1),ctx.height/2-_h,pixWidth,_h*2)
 			# iteration step
-			rayAng -= step
-			i+=1
-	_getIntersection: (rayAng, walls) ->
-		r = new Unitvector(Math.cos(rayAng),Math.sin(rayAng))
+			r.sub(pxlLat)
+	_getIntersection: (r, walls) ->
 		closestWall = null
 		p = null # position vector of the closest point on a wall in the direction of r
 		for wall in walls
@@ -70,7 +54,9 @@ class Player
 	constructor: (@position, theta, alpha, phi) ->
 		@camera = new Camera(@position, theta, alpha, phi)
 	moveForward: (r)->
-		@position.add(new Vector(Math.cos(@camera.theta),Math.sin(@camera.theta)).mult(r))
+		@position.add((new Vector(Math.cos(@camera.theta),Math.sin(@camera.theta))).mult(r))
 	turnLeft: (dtheta)->
 		@camera.theta += dtheta
-	
+	moveLeft: (r) ->
+		@position.add(((new Vector(Math.cos(@camera.theta),Math.sin(@camera.theta))).mult(r)).rot90())
+
