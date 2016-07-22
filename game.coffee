@@ -1,22 +1,29 @@
 class Unitvector
 	constructor : (@_x, @_y)->
+
+class Vector extends Unitvector
+	constructor : (@_x,@_y) ->
+		@_unit = null
+		@_length = null
+		@_length2 = null
+	clone : () ->
+		return new Vector(@_x,@_y)
+	cloneAll : () ->
+		a = new Vector(@_x,@_y)
+		a._unit = @_unit
+		a._length = @_length
+		a._length2 = @_length2
+		return a
 	dot : (vec) -> 
 		return @_x*vec._x + @_y*vec._y
 	cross : (vec) -> 
 		return @_x*vec._y - @_y*vec._x
 	rot90 : () ->
 		#rotate 90 degrees anticlockwise
-		x = @x
-		@x = -@y
-		@y = x
+		x = @_x
+		@_x = -@_y
+		@_y = x
 		return @
-
-class Vector extends Unitvector
-	constructor : (x,y) ->
-		@_unit = null
-		@_length = null
-		@_length2 = null
-		super(x,y)
 	len2 : () ->
 		if @_length2 == null
 			@_length2 = @_x**2 + @_y**2
@@ -28,21 +35,13 @@ class Vector extends Unitvector
 	hat : () ->
 		# unsafe, need to check if length is not 0 first
 		if not @_unit
-			@_unit = new Unitvector(@_x / @len() , @_y / @len())
+			@_unit = new Vector(@_x / @len() , @_y / @len())
 		return @_unit
 	set : (@_x,@_y) ->
 		@_unit = null
 		@_length = null
 		@_length2 = null
 		return @
-	clone : () ->
-		return new Vector(@_x,@_y)
-	cloneAll : () ->
-		a = new Vector(@_x,@_y)
-		a._unit = @_unit
-		a._length = @_length
-		a._length2 = @_length2
-		return a
 	add: (vec)->
 		@set(@_x+vec._x, @_y+vec._y)
 		return @
@@ -71,54 +70,48 @@ class Wall
 
 
 class Camera
-	constructor: (@pos, @theta, @alpha, @phi) ->
+	constructor: (@pos, @theta, @ctx, @walls, @width, @height, @pixWidth, @scrHeight, @scrWidth, @scrDist) ->
+		@xres = @width//@pixWidth
+		@pxlWidth = @scrWidth/@xres
+		# @e_theta = new Vector(Math.cos(@theta),Math.sin(@theta))
+		@xres = 640
+		@width = 640
+		@height = 480
+		@e_r = new Vector(Math.cos(@theta), Math.sin(@theta))
+
 	_adjust: () ->
 		if @theta > Math.PI
 			@theta -= 2*Math.PI
 		else if @theta < -Math.PI
 			@theta += 2*Math.PI
 			
-	drawWalls2: (ctx, walls, xres, pixWidth) ->
+	drawWalls: () ->
 		@_adjust()
-		step = @alpha * 2/xres
-		rayAng = @theta - @alpha
-		end = @theta + @alpha
-		i = 0
-		# implement a matrix rotation as alternative to using trig in iteration asp
-		while rayAng < end
-			p = @_getIntersection(rayAng, walls)
+		@ctx.clearRect(0, 0, @width, @height)
+		@pxlWidth = @scrWidth/@xres
+		console.log "@e_r", @e_r
+		e_theta = @e_r.clone().rot90()
+		console.log "e_theta", e_theta
+		pxlLat = e_theta.clone().mult(-@pxlWidth)
+		r = @e_r.clone().mult(@scrDist).add(e_theta.clone().mult(@scrWidth/2))
+		console.log "@scrDist", @scrDist
+		for i in [1..@xres]
+			console.log "r", r, " i: ", i
+			[p, closestWall] = @_getIntersection(r.hat())
 			if p != null
 				n = closestWall.a.clone().sub(closestWall.b).hat().rot90()
 				brightness = Math.abs(p.dot(n) / (p.len2()*p.len())) #=|p.n/(|p|^3)|
-				ctx.fillStyle = closestWall.getColour(brightness)
-				_h = Math.atan(Wall.h/2/p.len())/@phi
-				ctx.fillRect(ctx.width-pixWidth*(i+1),ctx.height/2-_h,pixWidth,_h*2)
-			# iteration step
-			rayAng += step
-			i+=1
-	drawWalls: (ctx, walls, xres, pixWidth, height) ->
-		@_adjust()
-		step = @alpha * 2/xres
-		rayAng = @theta + @alpha
-		end = @theta - @alpha
-		i = 0
-		while rayAng > end
-			[p, closestWall] = @_getIntersection(rayAng, walls)
-			if p != null
-				n = closestWall.a.clone().sub(closestWall.b).hat().rot90()
-				brightness = Math.abs(p.dot(n) / (p.len2()*p.len())) #=|p.n/(|p|^3)|
-				ctx.fillStyle =  closestWall.getColour(brightness)
-				_h = height*Math.atan(Wall.h/2/p.len())/@phi
-				ctx.fillRect(i,(height-_h)/2,1,_h)
+				@ctx.fillStyle = "#FF0000" #closestWall.getColour(brightness)
+				_h = Wall.h*r.len()/p.len()*@height/@scrHeight
+				@ctx.fillRect(i-1,(@height-_h)/2,@pixWidth,_h)
+				console.log "drawn"
 				#ctx.fillRect(ctx.width-pixWidth*(i+1),ctx.height/2-_h,pixWidth,_h*2)
 			# iteration step
-			rayAng -= step
-			i+=1
-	_getIntersection: (rayAng, walls) ->
-		r = new Unitvector(Math.cos(rayAng),Math.sin(rayAng))
+			r.add(pxlLat)
+	_getIntersection: (r) ->
 		closestWall = null
 		p = null # position vector of the closest point on a wall in the direction of r
-		for wall in walls
+		for wall in @walls
 			# positions of ends of the walls relative to player (2 copies)
 			_a = wall.a.clone().sub(@pos)
 			_b = wall.b.clone().sub(@pos)
@@ -139,85 +132,88 @@ class Camera
 
 
 class Player
-	constructor: (@position, theta, alpha, phi) ->
-		@camera = new Camera(@position, theta, alpha, phi)
+	constructor: (@position, theta, ctx, walls, width, height, pixWidth, ScrHeight, ScrWidth, ScrDist) ->
+		@camera = new Camera(@position, theta, ctx, walls, width, height, pixWidth, ScrHeight, ScrWidth, ScrDist)
 	moveForward: (r)->
-		@position.add(new Vector(Math.cos(@camera.theta),Math.sin(@camera.theta)).mult(r))
+		@position.add(@camera.e_r.clone().mult(r))
+		@camera.drawWalls()
 	turnLeft: (dtheta)->
 		@camera.theta += dtheta
-	
+		@camera.e_r.set(Math.cos(@camera.theta), Math.sin(@camera.theta))
+		@camera.drawWalls()
+	moveLeft: (r) ->
+		@position.add(@camera.e_r.clone().mult(r).rot90())
+		@camera.drawWalls()
 
 
 
 
 
-mainLoop = (ctx, player, walls, width, height) ->
-	# drawBackground(ctx)
-	ctx.clearRect(0, 0, width, height)
-	player.camera.drawWalls(ctx, walls, width, 1, height)
+
 
 setup = (canvasID) ->
-	canvas = document.getElementById(canvasID)
-	console.log canvas, canvasID
-	ctx = canvas.getContext("2d")
-	return [canvas,ctx]
+	c = document.getElementById(canvasID)
+	console.log c, canvasID
+	ctx = c.getContext("2d")
+	player = new Player(new Vector(0,0), 0, ctx, walls, c.width, c.height, 1, 1, c.width/c.height, 0.5)
+	return player
 
 walls = [new Wall(2,0,3,3),
          new Wall(3,3,3,-3),
          new Wall(3,-3,2,0)]
 
-[c,ctx] = setup("mycanvas")
-player = new Player(new Vector(0,0), 0, Math.PI/3,Math.PI/8)
+player = setup("mycanvas")
 
 interval=1000
 # setInterval((()->mainLoop(ctx, player, walls)), interval)
-mainLoop(ctx, player, walls, c.width, c.height)
+player.camera.drawWalls()
 console.log "end"
 console.log "saved"
 
 
-
-keyPressed = (e, c, ctx, walls, player) ->
-	e = e || window.event
-	console.log "key pressed ", e.keyCode
-	switch e.keyCode
-		when '38'
-			# up arrow
-			player.moveForward(0.2)
-			console.log "moved forward"
-			forward()
-
-		when '40'
-			# down arrow
-			player.moveForward(-0.2)
-			console.log "moved backward"
-		when '37'
-			# left arrow
-			player.turnLeft(Math.PI/24)
-		when '39'
-			# right arrow
-			player.turnLeft(-Math.PI/24)
-	mainLoop(ctx, player, walls, c.width, c.height)
-	console.log "redrawn"
 backward = (e)->
 	console.log "backward"
 	player.moveForward(-0.2)
-	mainLoop(ctx, player, walls, c.width, c.height)
 forward = (e)->
 	console.log "forward"
 	player.moveForward(0.2)
-	mainLoop(ctx, player, walls, c.width, c.height)
 left = (e)->
 	console.log "left"
 	player.turnLeft(Math.PI/24)
-	mainLoop(ctx, player, walls, c.width, c.height)
 right = (e)->
 	console.log "right"
 	player.turnLeft(-Math.PI/24)
-	mainLoop(ctx, player, walls, c.width, c.height)
-window.addEventListener("keydown",((e)->keyPressed(e, c, ctx, walls, player)),true)
+
+keyPressed = (e) ->
+	e = e || window.event
+	console.log "key pressed ", e.keyCode
+	switch e.keyCode
+		when 38
+			# up arrow
+			player.moveForward(0.05)
+			console.log "moved forward"
+			forward()
+
+		when 40
+			# down arrow
+			player.moveForward(-0.05)
+			console.log "moved backward"
+		when 37
+			# left arrow
+			player.turnLeft(Math.PI/24)
+		when 39
+			# right arrow
+			player.turnLeft(-Math.PI/24)
+		when 81
+			# q
+			player.moveLeft(0.05)
+		when 68
+			# d
+			player.moveLeft(-0.05)
+	console.log "redrawn"
 document.getElementById("back").addEventListener("click",backward)
 document.getElementById("left").addEventListener("click",left)
 document.getElementById("right").addEventListener("click",right)
 document.getElementById("forward").addEventListener("click",forward)
+window.addEventListener("keydown",keyPressed,true)
 

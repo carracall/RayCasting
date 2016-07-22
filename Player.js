@@ -3,86 +3,77 @@
   var Camera, Player;
 
   Camera = (function() {
-    function Camera(pos, theta, alpha1, phi1) {
+    function Camera(pos, theta1, ctx1, walls1, width1, height1, pixWidth1, scrHeight, scrWidth, scrDist) {
       this.pos = pos;
-      this.theta = theta;
-      this.alpha = alpha1;
-      this.phi = phi1;
+      this.theta = theta1;
+      this.ctx = ctx1;
+      this.walls = walls1;
+      this.width = width1;
+      this.height = height1;
+      this.pixWidth = pixWidth1;
+      this.scrHeight = scrHeight;
+      this.scrWidth = scrWidth;
+      this.scrDist = scrDist;
+      this.xres = Math.floor(this.width / this.pixWidth);
+      this.pxlWidth = this.scrWidth / this.xres;
+      this.xres = 640;
+      this.width = 640;
+      this.height = 480;
+      this.e_r = new Vector(Math.cos(this.theta), Math.sin(this.theta));
     }
 
     Camera.prototype._adjust = function() {
       if (this.theta > Math.PI) {
-        return this.theta -= Math.PI;
+        return this.theta -= 2 * Math.PI;
       } else if (this.theta < -Math.PI) {
-        return this.theta += Math.PI;
+        return this.theta += 2 * Math.PI;
       }
     };
 
-    Camera.prototype.drawWalls2 = function(ctx, walls, xres, pixWidth) {
-      var _h, brightness, end, i, n, p, rayAng, results, step;
+    Camera.prototype.drawWalls = function() {
+      var _h, brightness, closestWall, e_theta, i, j, n, p, pxlLat, r, ref, ref1, results;
       this._adjust();
-      step = this.alpha * 2 / xres;
-      rayAng = this.theta - this.alpha;
-      end = this.theta + this.alpha;
-      i = 0;
+      this.pxlWidth = this.scrWidth / this.xres;
+      console.log("@scrWidth: ", this.scrWidth);
+      this.e_r.set(Math.cos(this.theta), Math.sin(this.theta));
+      console.log("@e_r", this.e_r);
+      e_theta = this.e_r.clone().rot90();
+      console.log("e_theta", e_theta);
+      pxlLat = e_theta.clone().mult(-this.pxlWidth);
+      console.log("scrWidth?: ", pxlLat.clone().mult(this.xres));
+      r = this.e_r.clone().mult(this.scrDist).add(e_theta.clone().mult(this.scrWidth / 2));
+      console.log("test: ", this.e_r.clone());
+      console.log("@scrDist", this.scrDist);
       results = [];
-      while (rayAng < end) {
-        p = this._getIntersection(rayAng, walls);
+      for (i = j = 1, ref = this.xres; 1 <= ref ? j <= ref : j >= ref; i = 1 <= ref ? ++j : --j) {
+        console.log("r", r);
+        ref1 = this._getIntersection(r.hat()), p = ref1[0], closestWall = ref1[1];
         if (p !== null) {
           n = closestWall.a.clone().sub(closestWall.b).hat().rot90();
           brightness = Math.abs(p.dot(n) / (p.len2() * p.len()));
-          ctx.fillStyle = closestWall.getColour(brightness);
-          _h = Math.atan(Wall.h / 2 / p.len()) / this.phi;
-          ctx.fillRect(ctx.width - pixWidth * (i + 1), ctx.height / 2 - _h, pixWidth, _h * 2);
-        }
-        rayAng += step;
-        results.push(i += 1);
-      }
-      return results;
-    };
-
-    Camera.prototype.drawWalls = function(ctx, walls, xres, pixWidth, height) {
-      var _h, brightness, closestWall, end, i, n, p, rayAng, ref, results, step;
-      console.log("height: ", height);
-      console.log("width: ", xres);
-      this._adjust();
-      step = this.alpha * 2 / xres;
-      rayAng = this.theta + this.alpha;
-      end = this.theta - this.alpha;
-      i = 0;
-      results = [];
-      while (rayAng > end) {
-        ref = this._getIntersection(rayAng, walls), p = ref[0], closestWall = ref[1];
-        if (p !== null) {
-          console.log("not null");
-          n = closestWall.a.clone().sub(closestWall.b).hat().rot90();
-          console.log(p, n);
-          brightness = Math.abs(p.dot(n) / (p.len2() * p.len()));
-          ctx.fillStyle = "#FF0000";
-          _h = height * Math.atan(Wall.h / 2 / p.len()) / this.phi;
-          ctx.fillRect(i, 0, 1, _h);
+          this.ctx.fillStyle = "#FF0000";
+          _h = Wall.h * r.len() / p.len() * this.height / this.scrHeight;
+          this.ctx.fillRect(i - 1, 0, 1, this.height);
           console.log("drawn");
         }
-        rayAng -= step;
-        results.push(i += 1);
+        results.push(r.add(pxlLat));
       }
       return results;
     };
 
-    Camera.prototype._getIntersection = function(rayAng, walls) {
-      var __a, __b, _a, _b, _p, closestWall, j, len, p, r, t, wall;
-      r = new Unitvector(Math.cos(rayAng), Math.sin(rayAng));
+    Camera.prototype._getIntersection = function(r) {
+      var __a, __b, _a, _b, _p, closestWall, j, len, p, ref, t, wall;
       closestWall = null;
       p = null;
-      for (j = 0, len = walls.length; j < len; j++) {
-        wall = walls[j];
+      ref = this.walls;
+      for (j = 0, len = ref.length; j < len; j++) {
+        wall = ref[j];
         _a = wall.a.clone().sub(this.pos);
         _b = wall.b.clone().sub(this.pos);
         if (_a.dot(r) > _a.dot(_b.hat()) && _b.dot(r) > _b.dot(_a.hat())) {
           __a = _a.clone();
           __b = _b.clone();
           t = Math.abs((_b.cross(r)) / (_b.sub(_a).cross(r)));
-          console.log("t = ", t);
           _p = __a.mult(t).add(__b.mult(1 - t));
           if (p !== null) {
             if (p.len2() > _p.len2()) {
@@ -103,10 +94,22 @@
   })();
 
   Player = (function() {
-    function Player(position, viewDirection, alpha, phi) {
+    function Player(position, theta, ctx, walls, width, height, pixWidth, ScrHeight, ScrWidth, ScrDist) {
       this.position = position;
-      this.camera = new Camera(this.position, viewDirection, alpha, phi);
+      this.camera = new Camera(this.position, theta, ctx, walls, width, height, pixWidth, ScrHeight, ScrWidth, ScrDist);
     }
+
+    Player.prototype.moveForward = function(r) {
+      return this.position.add(this.e_r.clone().mult(r));
+    };
+
+    Player.prototype.turnLeft = function(dtheta) {
+      return this.camera.theta += dtheta;
+    };
+
+    Player.prototype.moveLeft = function(r) {
+      return this.position.add(this.e_r.clone().mult(r).rot90());
+    };
 
     return Player;
 

@@ -1,22 +1,29 @@
 class Unitvector
 	constructor : (@_x, @_y)->
-	dot : (vec) -> 
-		return @_x*vec._x + @_y*vec._y
-	cross : (vec) -> 
-		return @_x*vec._y - @_y*vec._x
-	rot90 : () ->
-		#rotate 90 degrees anticlockwise
-		x = @x
-		@x = -@y
-		@y = x
-		return @
 
 class Vector extends Unitvector
-	constructor : (x,y) ->
+	constructor : (@_x,@_y) ->
 		@_unit = null
 		@_length = null
 		@_length2 = null
-		super(x,y)
+	clone : () ->
+		return new Vector(@_x,@_y)
+	cloneAll : () ->
+		a = new Vector(@_x,@_y)
+		a._unit = @_unit
+		a._length = @_length
+		a._length2 = @_length2
+		return a
+	dot : (vec) ->
+		return @_x*vec._x + @_y*vec._y
+	cross : (vec) ->
+		return @_x*vec._y - @_y*vec._x
+	rot90 : () ->
+		#rotate 90 degrees anticlockwise
+		x = @_x
+		@_x = -@_y
+		@_y = x
+		return @
 	len2 : () ->
 		if @_length2 == null
 			@_length2 = @_x**2 + @_y**2
@@ -28,21 +35,13 @@ class Vector extends Unitvector
 	hat : () ->
 		# unsafe, need to check if length is not 0 first
 		if not @_unit
-			@_unit = new Unitvector(@_x / @len() , @_y / @len())
+			@_unit = new Vector(@_x / @len() , @_y / @len())
 		return @_unit
 	set : (@_x,@_y) ->
 		@_unit = null
 		@_length = null
 		@_length2 = null
 		return @
-	clone : () ->
-		return new Vector(@_x,@_y)
-	cloneAll : () ->
-		a = new Vector(@_x,@_y)
-		a._unit = @_unit
-		a._length = @_length
-		a._length2 = @_length2
-		return a
 	add: (vec)->
 		@set(@_x+vec._x, @_y+vec._y)
 		return @
