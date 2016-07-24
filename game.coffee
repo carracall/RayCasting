@@ -1,7 +1,4 @@
-class Unitvector
-	constructor : (@_x, @_y)->
-
-class Vector extends Unitvector
+class Vector
 	constructor : (@_x,@_y) ->
 		@_unit = null
 		@_length = null
@@ -14,10 +11,10 @@ class Vector extends Unitvector
 		a._length = @_length
 		a._length2 = @_length2
 		return a
-	dot : (vec) -> 
-		return @_x*vec._x + @_y*vec._y
-	cross : (vec) -> 
-		return @_x*vec._y - @_y*vec._x
+	dot : (v) ->
+		return @_x*v._x + @_y*v._y
+	cross : (v) ->
+		return @_x*v._y - @_y*v._x
 	rot90 : () ->
 		#rotate 90 degrees anticlockwise
 		x = @_x
@@ -49,13 +46,13 @@ class Vector extends Unitvector
 		@set(@_x-vec._x, @_y-vec._y)
 		return @
 	mult: (lambda)->
-		@set(@_x*lambda, @_y*lambda)
+		@_x*=lambda
+		@_y*=lambda
+		@_length*=lambda
+		@_length2*=lambda**2
 		return @
 
 		# change asp to calc new length
-
-#a = new Vector(1,1)
-#console.log a, a.hat(), a.len(), a.dot(a.hat())
 
 class Wall
 	@h : 1
@@ -89,12 +86,9 @@ class Camera
 		@_adjust()
 		@ctx.clearRect(0, 0, @width, @height)
 		@pxlWidth = @scrWidth/@xres
-		console.log "@e_r", @e_r
 		e_theta = @e_r.clone().rot90()
-		console.log "e_theta", e_theta
 		pxlLat = e_theta.clone().mult(-@pxlWidth)
 		r = @e_r.clone().mult(@scrDist).add(e_theta.clone().mult(@scrWidth/2))
-		console.log "@scrDist", @scrDist
 		for i in [1..@xres]
 			console.log "r", r, " i: ", i
 			[p, closestWall] = @_getIntersection(r.hat())
@@ -104,8 +98,6 @@ class Camera
 				@ctx.fillStyle = "#FF0000" #closestWall.getColour(brightness)
 				_h = Wall.h*r.len()/p.len()*@height/@scrHeight
 				@ctx.fillRect(i-1,(@height-_h)/2,@pixWidth,_h)
-				console.log "drawn"
-				#ctx.fillRect(ctx.width-pixWidth*(i+1),ctx.height/2-_h,pixWidth,_h*2)
 			# iteration step
 			r.add(pxlLat)
 	_getIntersection: (r) ->
@@ -163,41 +155,17 @@ walls = [new Wall(2,0,3,3),
          new Wall(3,-3,2,0)]
 
 player = setup("mycanvas")
-
-interval=1000
-# setInterval((()->mainLoop(ctx, player, walls)), interval)
 player.camera.drawWalls()
-console.log "end"
-console.log "saved"
-
-
-backward = (e)->
-	console.log "backward"
-	player.moveForward(-0.2)
-forward = (e)->
-	console.log "forward"
-	player.moveForward(0.2)
-left = (e)->
-	console.log "left"
-	player.turnLeft(Math.PI/24)
-right = (e)->
-	console.log "right"
-	player.turnLeft(-Math.PI/24)
 
 keyPressed = (e) ->
 	e = e || window.event
-	console.log "key pressed ", e.keyCode
 	switch e.keyCode
 		when 38
 			# up arrow
 			player.moveForward(0.05)
-			console.log "moved forward"
-			forward()
-
 		when 40
 			# down arrow
 			player.moveForward(-0.05)
-			console.log "moved backward"
 		when 37
 			# left arrow
 			player.turnLeft(Math.PI/24)
@@ -210,10 +178,5 @@ keyPressed = (e) ->
 		when 68
 			# d
 			player.moveLeft(-0.05)
-	console.log "redrawn"
-document.getElementById("back").addEventListener("click",backward)
-document.getElementById("left").addEventListener("click",left)
-document.getElementById("right").addEventListener("click",right)
-document.getElementById("forward").addEventListener("click",forward)
 window.addEventListener("keydown",keyPressed,true)
 

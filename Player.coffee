@@ -18,12 +18,9 @@ class Camera
 		@_adjust()
 		@ctx.clearRect(0, 0, @width, @height)
 		@pxlWidth = @scrWidth/@xres
-		console.log "@e_r", @e_r
 		e_theta = @e_r.clone().rot90()
-		console.log "e_theta", e_theta
 		pxlLat = e_theta.clone().mult(-@pxlWidth)
 		r = @e_r.clone().mult(@scrDist).add(e_theta.clone().mult(@scrWidth/2))
-		console.log "@scrDist", @scrDist
 		for i in [1..@xres]
 			console.log "r", r, " i: ", i
 			[p, closestWall] = @_getIntersection(r.hat())
@@ -33,8 +30,6 @@ class Camera
 				@ctx.fillStyle = "#FF0000" #closestWall.getColour(brightness)
 				_h = Wall.h*r.len()/p.len()*@height/@scrHeight
 				@ctx.fillRect(i-1,(@height-_h)/2,@pixWidth,_h)
-				console.log "drawn"
-				#ctx.fillRect(ctx.width-pixWidth*(i+1),ctx.height/2-_h,pixWidth,_h*2)
 			# iteration step
 			r.add(pxlLat)
 	_getIntersection: (r) ->

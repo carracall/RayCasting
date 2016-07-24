@@ -1,7 +1,4 @@
-class Unitvector
-	constructor : (@_x, @_y)->
-
-class Vector extends Unitvector
+class Vector
 	constructor : (@_x,@_y) ->
 		@_unit = null
 		@_length = null
@@ -14,10 +11,10 @@ class Vector extends Unitvector
 		a._length = @_length
 		a._length2 = @_length2
 		return a
-	dot : (vec) ->
-		return @_x*vec._x + @_y*vec._y
-	cross : (vec) ->
-		return @_x*vec._y - @_y*vec._x
+	dot : (v) ->
+		return @_x*v._x + @_y*v._y
+	cross : (v) ->
+		return @_x*v._y - @_y*v._x
 	rot90 : () ->
 		#rotate 90 degrees anticlockwise
 		x = @_x
@@ -49,10 +46,10 @@ class Vector extends Unitvector
 		@set(@_x-vec._x, @_y-vec._y)
 		return @
 	mult: (lambda)->
-		@set(@_x*lambda, @_y*lambda)
+		@_x*=lambda
+		@_y*=lambda
+		@_length*=lambda
+		@_length2*=lambda**2
 		return @
 
 		# change asp to calc new length
-
-#a = new Vector(1,1)
-#console.log a, a.hat(), a.len(), a.dot(a.hat())
